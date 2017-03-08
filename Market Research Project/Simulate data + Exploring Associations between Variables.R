@@ -111,4 +111,13 @@ plot(cust.df$store.spend, cust.df$online.spend,
      ylab= "Prior 12 months online sales ($)")
 axis(1, col = "grey", col.axis = "dark grey", lwd = 0.7)
 axis(2, col = "grey", col.axis = "dark grey", lwd = 0.7)
-legend()
+legend(x="topright",legend = paste("email on file:", levels(cust.df$email)),
+       col = mycol, pch = mypch,
+       bty = "n", pt.cex = 1, text.col = mycol)
+
+ggplot(cust.df, aes(x = store.spend, y = online.spend, shape = email, col = email)) + 
+  geom_point(size = 3, alpha = 0.5) + 
+  theme(plot.title = element_text(face="bold", size = 20, hjust = 0.5), plot.margin = unit(c(1,1,1,1), "cm"))+
+  labs(title = "Customer as of Feb 2017", x = "Prior 12 months in-store sales ($)", y = "Prior 12 months online sales ($)")
+
+?theme
