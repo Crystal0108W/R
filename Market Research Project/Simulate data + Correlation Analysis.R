@@ -6,6 +6,7 @@ install.packages("gpairs")
 install.packages("corrplot")
 install.packages("gplots")
 install.packages("psych")
+install.packages("plotly")
 
 library(gridExtra)
 library(ggplot2)
@@ -14,6 +15,7 @@ library(gpairs)
 library(corrplot)
 library(gplots)
 library(psych)
+library(plotly)
 #1. Simulate a data set that describes
 
 #1.1 Simulate Customer Data
@@ -140,9 +142,10 @@ ggplot(cust.df, aes(x = store.spend, y = online.spend, shape = email, col = emai
 tempx <- log(cust.df$store.spend + 1)
 tempy <- log(cust.df$online.spend + 1)
 
-ggplot(cust.df, aes(x=tempx, y=tempy, shape = email, col = email)) + geom_point(size = 2, alpha = 0.5) + 
+a<-ggplot(cust.df, aes(x=tempx, y=tempy, shape = email, col = email)) + geom_point(size = 2, alpha = 0.5) + 
   theme(plot.title = element_text(face="bold", size = 15, hjust = 0.5), plot.margin = unit(c(1,1,1,1), "cm"))+
   labs(title = "Customer as of Feb 2017", x = "Prior 12 months in-store sales ($)", y = "Prior 12 months online sales ($)")
+ggplotly(a)
 
 # INSIGHTS: It now appears that there is little or no association between online and in-store sales; 
 #           the scatterplot among customers who purchase in both channels shows no pattern. 
