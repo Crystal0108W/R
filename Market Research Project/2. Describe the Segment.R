@@ -1,12 +1,7 @@
 # Market Research: Compare the groups: Tables and Visualizations
-# In this project, I first created random segment datasets using if() function and for() loop
-# Here I segmented the population based on age, gender, income, how many kids in household, own a home or not and if they subscribe to the cable or not.
-# What I am trying to describe here is how those variables vary for different segments
-# Then I described discrete attributes in tables and visualize it in barchart and histogram chart
-# Lastly, I visualized the continuous attributes in boxplot.
-
 
 # Step 1: simulating consumer segement data
+
 # Define the structure of the data sets
 segVars <- c("Age","Gender","Income","Kids","ownHome","Subscribe")
 segVarTye <- c("norm","binom","norm","pois","binom","binom")
@@ -87,7 +82,7 @@ apply(seg.tab*0.7, 2, sum)
 colSums(seg.tab*0.7)
 
 
-# Step2: Visualize by Group - Discreet Data
+# Visualize by Group - Discreet Data
 # histogram()in lattice package understands formula notation including conditioning on a factor, which means to seperate the plot into multiple panes based on that factor
 
 require(lattice)
@@ -103,7 +98,6 @@ prop.table(table(seg.df$Subscribe, seg.df$Segment), margin =1)
 barchart(prop.table(table(seg.df$Subscribe, seg.df$Segment),
                     margin = 2)[2, ], xlab = "Subscriber proportion by Segment", col = "pink")
 
-
 # Visualize by Group - Continuous Data
 # Alternative 1: aggregate() + barchart()
 seg.mean <- aggregate(Income ~ Segment, data = seg.df, mean)
@@ -116,8 +110,105 @@ barchart(Income~Segment, data = seg.income.agg,
 # Alternative 2: boxplot or box-and-whiskers show more about the distributions of values
 boxplot(Income ~ Segment, data = seg.df, yaxt = "n", ylab = "Income ($k)")
 ax.seq <- seq(from = 0, to = 120000, by = 20000)
-axis(side = 2, at = ax.seq, labels = paste(ax.seq/1000, "k", sep = ""), las = 1)
+axis(side = 2, at = ax.seq, labels = paste(ax.seq/1000, "k", sep = ""), las = 2)
 
 bwplot(Segment~Income, data = seg.df, horizontal = TRUE, xlab = "Income")
 bwplot(Segment~Income|ownHome, data = seg.df, horizontal = TRUE, xlab = "Income") # breakout home ownership
 
+###########################################################################################################
+# Market Research: Comapring Groups: Statistical Tests
+# It looks different, but does it REALLY different?
+# Inferential statistical procedures: chi-square, t-test, ANOVA
+
+# Chi-Square test determines whether the frequencies(distribution) in cells are significantly different from what one would expect on the basis of their total counts
+# chisq.test() operates on a TABLE
+chisq.test(table(seg.df$Segment))
+# the p-value of 0.0006 shows that there is a statistically different number of customers in each segment
+
+table(seg.df$Subscribe, seg.df$ownHome)
+chisq.test(table(seg.df$Subscribe, seg.df$ownHome))
+# the p-value of 0.08 indicates that the home ownership is significantly independent of subscription status in the data
+# Or to put it in another way, there is no significant relationship between subscription rate and home ownership
+# 1. For 2*2 tables, chisq.test() defaults to using Yate's correction and if you want the results to match traditional calues such as calculation by hand
+chisq.test(table(seg.df$Subscribe, seg.df$ownHome), correct = FALSE)
+
+# 2. chisq.test() can calculate confidence intervals using a simulation method, where it compares the observed table to thousands of simulated tables with the same marginal counts, 
+#    The p-value indicates the proportion of those simulations with differences between the cell counts and marginal proportions at lease as large as the ones in the observed table. 
+chisq.test(table(seg.df$Subscribe, seg.df$ownHome), sim = TRUE, B = 10000)
+# the p-value of 0.06 is slightly different from the previous p-values, but overall, they are indicating the same conclusion that there is no significant relationship between home ownership and subscription
+
+# The observations are a random sample of a binomial value, binom.test(success, trials, probabilities) can be used to test the lokelihood of random observing # of successes out of # of trials in one direction, if the true likelihood is probability
+binom.test(10, 30, p = 0.5)
+# number of successes = 10, number of trials= 30, p-value = 0.09874
+# alternative hypothesis: true probability of success is not equal to 0.5 95 percent confidence interval:0.1728742 0.5281200
+# sample estimates: probability of success: 0.3333333
+sum(dbinom(8:12, 20, 0.5)) #density estimate for a binomial distribution
+# We would observe 8-12 successes out of 20 trials if the true probability is 0.5
+
+# An exact binomial test may be overly conservative in its estimation of confidence level
+# Alteratively, we can use binom.confit(, method = "agresti-counll")
+install.packages("binom")
+library(binom)
+binom.confint(12,20,methods = "ac")
+# with Agresti-Coull method, the confidence interval is slightly smaller but still includes 50%
+
+
+# Testing Group Means: t.test()
+# A t-test compares the mean of one sample against the mean of another sample (or agains a specific value such as 0)
+# It compares the mean for EXACTLY 2 sets of data. 
+# Before applying any statistical test or model, it is important to examine the ASSUMPTIONS and check for skew, discontinuities and outliers
+
+# Assumption Test: Check for normal distribution with boxplot or histogram: 
+hist(seg.df$Income)
+with(seg.df, hist(Income[ownHome=="ownYes"]))
+with(seg.df, hist(Income[ownHome=="ownNo"]))
+
+# Test whether home ownership overall is related to differences in income, across all segments
+t.test(Income ~ ownHome,data = seg.df)
+# t statistics is -1.8871, with a p-value of 0.06, this means that the null hypothesis of no difference in income by home ownership is not rejected. 
+# And we are 95% confident that the group difference is between -6062 to 127
+# Fianlly, the mean income for ownNo is 54277.57 and ownYes is 57245.16
+
+# ANOVA: test multiple group means
+seg.aov.own <- aov(Income ~ ownHome, data = seg.df)
+anova(seg.aov.own) # Or summary(seg.aov.own)
+
+seg.aov.seg <- aov(Income ~ Segment, data = seg.df)
+anova(seg.aov.seg)# Or summary(seg.aov.seg)
+
+# If income varies by both home ownership adn segment, we can add both factors into the ANOVA model to test this:
+anova(aov(Income ~ Segment + ownHome, data = seg.df))
+# segment is a significant predictor but home ownership is not a significant predictor, yet the previous results said that it was significant.
+# This is because that segment and home ownership are not independent and the effect is captured sufficiently by segment membership alone
+# There is interaction effect. 
+# In a model formula, "+" indicates taht variables should be modeled for main effects only. 
+# Instead, we can write ":" for an interaction or "*" for both main effect and interaction
+
+anova(aov(Income ~ Segment * ownHome, data = seg.df))
+# The statistics shows that segment is a significant predictor while home ownership and the interaction of segment with homw ownership is not significant. 
+# In other words, segments membership is again the best predictor on its own. 
+
+# Model Comparison in ANOVA
+# Another capability of the anova() command is to compare two or more models
+anova(aov(Income ~ Segment, data = seg.df),
+      aov(Income ~ Segment + ownHome, data = seg.df))
+
+# The results(F = 1.35, p = 0.245) indicate that Model2, which includes both segment and home ownership is not significantly different in overall fit from Model1. 
+# NOTE: the model comparison as performed by the anova() command ONLY makes sense in the case of nested models.
+# Here Income ~ Segment is nested within Income ~ Segment + ownHome
+
+
+# Visualizing Group Confidence Intervals
+# A good way to visualize the results ofan ANOVA is to plot confidence intervals for the group means
+install.packages("multcomp")
+library(multcomp)
+seg.aov <- aov(Income ~ -1 + Segment, data = seg.df) # remove the intercept by adding "-1" to the model formula:
+glht(seg.aov)
+
+par(mar=c(6,10,2,2))
+plot(glht(seg.aov),
+     xlab = "Income",
+     main = "Average Income by Segment (95% CI)")
+
+# Variable Selection in ANOVA: Stepwise Modeling
+seg.aov.step <- step(aov(Income ~ . data = seg.df))
