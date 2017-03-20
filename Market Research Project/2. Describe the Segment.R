@@ -39,8 +39,8 @@ for (i in seq_along(segName)) {
     } else if (segVarTye[j]=="binom") { # draw binomial
       this.seg[,j] <- rbinom(SegSize[i], size = 1, prob = segMeans[i,j])
     } else {
-        stop("Bad segment data type: ", segVarTye[j])
-      }
+      stop("Bad segment data type: ", segVarTye[j])
+    }
   }
   seg.df <- rbind(seg.df, this.seg)
 }
@@ -211,4 +211,42 @@ plot(glht(seg.aov),
      main = "Average Income by Segment (95% CI)")
 
 # Variable Selection in ANOVA: Stepwise Modeling
-seg.aov.step <- step(aov(Income ~ . data = seg.df))
+seg.aov.step <- step(aov(Income ~ ., data = seg.df))
+
+
+# Bayes 
+# Bayesian analysis is a more direct way to tackle the probability questions (How likely is the difference?). It is very different from the traditional frequentist statistical model
+install.packages("BayesFactor")
+library(BayesFactor)
+set.seed(12345)
+seg.bf1 <- lmBF(Income ~ Segment, data = seg.df)
+seg.bf2 <- lmBF(Income ~ Segment + ownHome, data = seg.df)
+seg.bf1 / seg.bf2 # Comparing the two models 
+# The results indicate that the ratio of Bayes Factors for model 1 vs. model 2 is 3.61. This means that the first model is the preferable model by a factor of 3.61
+
+seg.bf.chain <- posterior(seg.bf1, 1, iterations = 10000) # To find the model parameters and their credible range. Draw 10000 samples of the possible parameters from model 1 
+plot(seg.bf.chain[, 1:6]) # Inspect whether the draws converged to stable values such that the estimates are reliable
+summary(seg.bf.chain)
+
+head(seg.bf.chain)
+seg.bf.chain[1:7, 1:5] # By indexing the chain, it is confirmed to be arranged as a matrix
+seg.bf.chain.total <- seg.bf.chain[, 2:5] + seg.bf.chain[, 1]
+seg.bf.ci <- t(apply(seg.bf.chain.total, 2, quantile, pr = c(0.025, 0.5, 0.975)))
+seg.bf.ci
+
+install.packages("ggplot2")
+library(ggplot2)
+seg.bf.df <- data.frame(seg.bf.ci)
+seg.bf.df$Segment <- rownames(seg.bf.df)
+
+summary(seg.bf.df)
+ggplot(seg.bf.df, aes(x = Segment, y = X50., ymax = X97.5., ymin = X2.5.)) + 
+  geom_point(size = 4) + 
+  geom_errorbar(width = 0.2) + 
+  labs(y = "Income", title = "95% CI for Mean Income by Segment") + coord_flip()
+
+# The Bayesian results are not all that different from: 
+  # par(mar=c(6,10,2,2))
+  # plot(glht(seg.aov),
+  #     xlab = "Income",
+  #     main = "Average Income by Segment (95% CI)")
