@@ -115,6 +115,17 @@ axis(side = 2, at = ax.seq, labels = paste(ax.seq/1000, "k", sep = ""), las = 2)
 bwplot(Segment~Income, data = seg.df, horizontal = TRUE, xlab = "Income")
 bwplot(Segment~Income|ownHome, data = seg.df, horizontal = TRUE, xlab = "Income") # breakout home ownership
 
+
+# TECHNIC KEY POINTS
+#1. When writing for() loops, use seq along() instead of 1:length()
+#2. Whencreatingadataobjectfromscratch,pre-populateitwithmissingdata(NA) and then fill it in, for speed and reliability
+#3. The by() command can split up data and automatically apply functions such as mean() and summary()
+#4. aggregate()isevenmorepowerful:itunderstandsformulamodelsandpro- duces a reusable, indexable object with its results
+#5. Frequency of occurrence can be found with table(). For count data, espe- cially when using formulas, xtabs() is useful
+#6. Charts of proportions and occurrence by a factor are well suited to the lattice package histogram() command
+#7. Plots for continuous data by factor may use barchart(), or even better, box-and-whiskers plots with boxplot(). The lattice package extends such plots to multiple factors using formula specification and the bwplot() command
+
+
 ###########################################################################################################
 # Market Research: Comapring Groups: Statistical Tests
 # It looks different, but does it REALLY different?
@@ -214,7 +225,8 @@ plot(glht(seg.aov),
 seg.aov.step <- step(aov(Income ~ ., data = seg.df))
 
 
-# Bayes 
+
+# Bayes
 # Bayesian analysis is a more direct way to tackle the probability questions (How likely is the difference?). It is very different from the traditional frequentist statistical model
 install.packages("BayesFactor")
 library(BayesFactor)
@@ -250,3 +262,15 @@ ggplot(seg.bf.df, aes(x = Segment, y = X50., ymax = X97.5., ymin = X2.5.)) +
   # plot(glht(seg.aov),
   #     xlab = "Income",
   #     main = "Average Income by Segment (95% CI)")
+
+# TECHNIC KEY POINTS
+#1. chisq.test() and binom.test() find confidence intervals and perform hypothesis tests on tables and proportion data, respectively. 
+#   The binom package offers options such as Agresti–Coull and Bayesian versions of binomial tests that may be more informative and robust than standard exact binomial tests.
+#2. A t.test() is a common way to test for differences between the means of two groups (or between one group and a fixed value)
+#3. ANOVA is a more general way to test for differences in mean among several groups that are identified by one or more factors. The basic model is fit with aov() and common summary statistics are reported with anova()
+#4. The anova() command is also useful to compare two or more ANOVA or other linear models, provided that they are nested models 
+#5. Stepwise model selection with step() is one way to evaluate a list of variables to select a well-fitting model, although we recommend that it be used with caution as other procedures may be more appropriate
+#6. Plotting a glht() object from the multcomp package is a good way to visualize confidence intervals for ANOVA models 
+#7. A relatively straightforward starting point for Bayesian ANOVA and other linear models is the BayesFactor package
+#8. Bayesian models should be evaluated for the stability and distribution of their estimated parameters using trace and density plots
+#9. Credible intervals (and other types of intervals) may be plotted with the ggplot2 option to add geom errorbar() lines for groups
