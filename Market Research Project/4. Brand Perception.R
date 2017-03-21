@@ -30,10 +30,20 @@ library(gplots)
 heatmap.2(as.matrix(brand.mean),
           col = brewer.pal(9, "GnBu"), trace = "none", key = FALSE, dend = "none",
           main = "\n\n\n\n\nBrand attributes")
-# Brands f and g are similar with high ratings for re- buy and value but low ratings for latest and fun. Other groups of similar brands are b/c, i/h/d, and a/j.
-
+# Brands f and g are similar with high ratings for rebuy and value but low ratings for latest and fun. Other groups of similar brands are b/c, i/h/d, and a/j.
 
 # Principal component analysis (PCA): attempts to find uncorrelated linear dimensions that capture maximal variance in the data. + Perceptual Map
+brand.pc <- prcomp(brand.sc[, 1:9])
+summary(brand.pc)  
+plot(brand.pc, type = "lines") # look for elbows
+# In this visual, the elbow occurs at 3, so the first 3 components explain most of the variation. 
+biplot(brand.pc)
+# biplot() of the first two principal components by default
+
+# But the plot of individual respondents' ratings is too dense, we can use aggregare ratings instead
+brand.mu.pc <- prcomp(brand.mean, scale. = TRUE)
+summary(brand.mu.pc)
+
 # Exploratory factor analysis (EFA) also attempts to capture variance with a small number of dimensions while seeking to make the dimensions interpretable in terms of the original variables.
 # Multidimensional scaling (MDS) maps similarities among observations in terms of a low-dimension space such as a two-dimensional plot. MDS can work with metric data and with non-metric data such as categorical or ordinal data.
 
