@@ -160,7 +160,6 @@ text(brand.mds.r$points, levels(brand.sc$brand), cex = 2)
 # MDS is a valuable alternative to PCA when working with non-metric data. 
 
 # Key Points PCA: 
-
 # 1. PCA finds linear functions that explain maximal variance in observed data. 
 #    A key concept is that such components are orthogonal (uncorrelated). 
 #    The basic R command is prcomp()
@@ -171,7 +170,6 @@ text(brand.mds.r$points, levels(brand.sc$brand), cex = 2)
 
 
 # Key Points EFA: 
-
 # 1. EFA models latent variables (factors) that are not observed directly but appear indirectly as observed manifest variables.
 #    A key procedure is factanal()
 # 2. A fundamental decision in EFA is the number of factors to extract.
