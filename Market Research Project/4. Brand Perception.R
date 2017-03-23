@@ -29,7 +29,7 @@ install.packages("gplots")
 library(gplots)
 heatmap.2(as.matrix(brand.mean),
           col = brewer.pal(9, "GnBu"), trace = "none", key = FALSE, dend = "none",
-          main = "\n\n\n\n\nBrand attributes")
+          main = "Brand attributes")
 # Brands f and g are similar with high ratings for rebuy and value but low ratings for latest and fun. Other groups of similar brands are b/c, i/h/d, and a/j.
 
 # Principal component analysis (PCA): attempts to find uncorrelated linear dimensions that capture maximal variance in the data. + Perceptual Map
@@ -47,7 +47,7 @@ summary(brand.mu.pc)
 
 # Perceptual Map of the brand
 par(mar=c(5,1,4,1))
-biplot(brand.mu.pc, main = "Brand Positioning", cex = c(0.5, 0.5))
+biplot(brand.mu.pc, main = "Brand Positioning", cex = c(1.5, 1))
 # If the strategic goal is to be a safe brand that appeals to many consumers, then a relatively undifferentiated position like e(sitting in the middle) could be desirable
 # If the strategic goal is for the brand to have a strong, differentiated perception, this finding would be unwanted. 
 
@@ -101,13 +101,88 @@ heatmap.2(brand.fa.ob$loadings,
 
 
 # Step4: Visualize the item-factor relationships - Path Diagram
-install.packages("semPlot")
+install.packages("semPlot", type = "source")
 library(semPlot)
 semPaths(brand.fa.ob, what = "est", residuals = FALSE,
          cut = 0.3, posCol = c("grey", "cyan"), negCol = c("grey", "salmon"),
          edge.label.cex = 0.75, nCharNodes = 7)
 
+# Step5-1: Using Factor Scores for Brands
+brand.fa.ob <- factanal(brand.sc[,1:9], factors = 3, rotation = "oblimin", scores = "Bartlett")
+brand.scores <- data.frame(brand.fa.ob$scores)
+brand.scores$brand <- brand.sc$brand
+head(brand.scores)
+# The score of each factor for each brand to reduce data complexity
+
+brand.fa.mean <- aggregate(.~brand, data = brand.scores, mean) #find the overall position for the brand by aggregating the individual scores
+rownames(brand.fa.mean) <- brand.fa.mean[, 1]
+brand.fa.mean <- brand.fa.mean[, -1]
+names(brand.fa.mean) <- c("Leader", "Value", "Latest")
+brand.fa.mean
+
+# Step5-2: Visualize the positioning/make up of factor scores
+heatmap.2(as.matrix(brand.fa.mean),
+          col = brewer.pal(9,"GnBu"), trace = "none", key = FALSE, dend = "none", 
+          cexCol = 1.2, main = "\n\n\n\n\n\n Mean Factor Score by Brand")
+
 
 
 
 # Multidimensional scaling (MDS) maps similarities among observations in terms of a low-dimension space such as a two-dimensional plot. MDS can work with metric data and with non-metric data such as categorical or ordinal data.
+# Instead of extracting underlying components or latent factors, MDS works instead with distances (also known as similarities). 
+# MDS attempts to find a lower-dimensional map that best preserves all the observed similarities be- tween items.
+
+# For metric data(numeric)
+# 1. Calculate Similarity 
+brand.dist <- dist(brand.mean) #dist() calculate Eucleadian distances
+# 2. Find MDS solution for a distance matris from metric data
+(brand.mds <- cmdscale(brand.dist))
+# 3. Plot them
+plot(brand.mds, type = "n")
+text(brand.mds, rownames(brand.mds), cex = 2) #text(x, labels) to add labels to symbols in the plot
+
+# For non-metric data(rankings or categorica variables)
+brand.rank <- data.frame(lapply(brand.mean, function(x) ordered(rank(x))))
+brand.rank1 <- data.frame(lapply(brand.mean, rank))
+# 1. Calculate Similarity
+install.packages("cluster")
+library(cluster)
+install.packages("MASS")
+library(MASS)
+brand.dist.r <- daisy(brand.rank, metric = "gower") # In daisy(), we compute distance with the gower metric, which handles mixed numeric, ordinal, and nominal data
+# 2. Find MDS solution for a distance matris from non-metric data
+brand.mds.r <- isoMDS(brand.dist.r)
+# 3. Plot them
+plot(brand.mds.r$points, type = "n")
+text(brand.mds.r$points, levels(brand.sc$brand), cex = 2)
+# Still, the nearest neighbors of brands are largely consistent with the exception of brands h and i, which are separated quite a bit more than in the metric solution. 
+# This occurs because the rank-order procedure loses some of the information that is present in the original metric data solution, resulting in a slightly different map.
+# MDS is a valuable alternative to PCA when working with non-metric data. 
+
+# Key Points PCA: 
+
+# 1. PCA finds linear functions that explain maximal variance in observed data. 
+#    A key concept is that such components are orthogonal (uncorrelated). 
+#    The basic R command is prcomp()
+# 2. A common use for PCA is a biplot of aggregate scores for brands or people to visualize relationships. 
+#    When this is done for attitudinal data such as brand ratings it is called a perceptual map. 
+#    This is created by aggregating the statistic of interest by entity and charting with biplot()
+# 3. Because PCA components often load on many variables, the results must be inspected cautiously and in terms of relative position. 
+
+
+# Key Points EFA: 
+
+# 1. EFA models latent variables (factors) that are not observed directly but appear indirectly as observed manifest variables.
+#    A key procedure is factanal()
+# 2. A fundamental decision in EFA is the number of factors to extract.
+#    Common criteria involve inspection of a scree plot and extraction of factors such that all eigenvalues are greater than 1.0. 
+#    There are useful tools to determine the number of factors in nFactors
+# 3. EFA uses rotation to adjust an initial solution to one that is mathematically equivalent but more interpretable according to one’s aims. 
+#    Another key decision in EFA is whether one believes the underlying latent variables should be uncorrelated (calling for an orthogonal rotation such as varimax) or correlated (calling for an oblique rotation such as oblimin) 
+# 4. After performing EFA, you can extract factor scores that are the best estimates for each observation (respondent) on each factor. These are present as $scores in factanal() objects if you request them with the scores argument
+
+
+# Key Points MDS: 
+# MDS is similar to PCA but is able to work with both metric and non-metric data. 
+# MDS requires a distance score obtained from dist() for metric data or a procedure such as daisy() for non-metric data. 
+# MDS scaling is then performed by cmdscale() for metric data or isoMDS() (or other options) for non-metric data. 
