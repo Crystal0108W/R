@@ -1,172 +1,91 @@
+# Hierarchical Linear Model - Determine Individual Level Effect - Estimate the values in the model for each respondent
+# Roller Coaster Conjoint Analysis: levels of maximum speed, height, construction type , and theme.
+# when you have multiple observations for an individual or other grouping factor of interest, you should consider a hierarchical model that estimates both sample-level and individual- or group-level effects.
+
+
+# Simulating Ratings-Based Conjoint Data
+set.seed(12345)
+resp.id <- 1:200
+nques <- 16
+speed <- sample(as.factor(c("40", "50", "60", "70")), size = nques, 
+                replace = TRUE)
+height <- sample(as.factor(c("200", "300", "400")), size=nques, replace=TRUE)
+const <- sample(as.factor(c("Wood", "Steel")), size= nques, replace=TRUE)
+theme <- sample(as.factor(c("Dragon", "Eagle")), size=nques, replace=TRUE)
+profiles.df <- data.frame(speed, height, const, theme)
+profiles.model <- model.matrix(~ speed + height + const + theme, data = profiles.df) # converts the list of design attributes into coded variables;
+
+install.packages("MASS")
+library(MASS)
+weights <- mvrnorm(length(resp.id),
+                   mu = c(-3, 0.5, 1, 3, 2, 1, 0, -0.5),
+                   Sigma = diag(c(0.2, 0.1, 0.1, 0.1, 0.2, 0.3, 1, 1))) # draw unique preference weights for each respondent.
+
+# Simulate Conjoint Data
+conjoint.df <- NULL 
+for(i in seq_along(resp.id)) {
+  utility <- profiles.model %*% weights[i, ] + rnorm(16) # add noise in by rnorm()
+  rating <- as.numeric(cut(utility, 10))  # put on a 10-point scale
+  conjoint.resp <- cbind(resp.id = rep(i, nques), rating, profiles.df)
+  conjoint.df <- rbind(conjoint.df,conjoint.resp)
+}
+
+
+# Regular Linear Modelling 
+summary(conjoint.df)
+by(conjoint.df$rating, conjoint.df$height, mean)
+ride.lm <- lm(rating ~ speed + height + const + theme, data = conjoint.df) # Fixed effects that are estimated at the sample level. 
+summary(ride.lm)
+
+# The highest rated roller coaster on average would have a top speed of 70 mph, a height of 300 ft, steel construction, and the dragon theme
+# BUT, The coefficients are estimated on the basis of designs that mostly combine both desirable and undesirable attributes, and are not as reliable at the extremes of preference. 
+# Additionally, it could happen that few people prefer that exact combination even though the individual features are each best on average.
+
+# [Intercept]Hierarchical Linear Model - estimate both the overall average preference level and individual preferences within the group.
+install.packages("lme4")
+install.packages("Matrix")
+library(Matrix)
+library(lme4)
+ride.hlm1 <- lmer(rating ~ speed + height + const + theme + (1 | resp.id), data = conjoint.df) # allow indiciduals to vary only in terms of the constant intercept
+# For the intercept, that is signified as simply “1”; the grouping variable, for which a random effect will be estimated for each unique group
+# syntax: predictors | group, specify the random effect and grouping variable with syntax using a vertical bar "|"
+# In present case, it is interesting to know the randome effetc("1") of intercept on each individaul level. 
+summary(ride.hlm1)
+fixef(ride.hlm1) # Extract fixed effects at the population level. 
+ranef(ride.hlm1)$resp.id # Extract random effect estimates for intercept 
+coef(ride.hlm1)$resp.id # The complete effect for each respondent comprises the overall fixed effects that apply to everyone + the individually varying random effects 
+
+# [Complete]Hierarchical Linear Model - estimate a random effect parameter for every coefficient of interest for every respondent.
+ride.hlm2 <- lmer(rating ~ speed + height + const + theme + (speed + height + const + theme | resp.id), data = conjoint.df, control = lmerControl(optCtrl = list(maxfun = 10000)) # Allow variance in every coefficients of interest
+# control argument increases the maxfun number of iterations to attempt convergence from 10,000 iterations (the default) to 100,000. This allows the model to converge better
+summary(ride.hlm2)
+fixef(ride.hlm2)
+ranef(ride.hlm2)
+coef(ride.hlm2)$resp.id
+firstcustomercoef_hlm <- coef(ride.hlm2)$resp.id[1, ] #fitting regression line for each respondent WITHOUT throwing away information
+
+firstcustomer <- subset(conjoint.df, resp.id == 1)
+firstcustomer_lm <- lm(rating ~ speed + height + const + theme, data = firstcustomer)
+coef(firstcustomer_lm) #fitting regression line for each respondent WITH throwing away information
+
+# Visualize Preference
+ride.constWood <- ((coef(ride.hlm2)$resp.id)[, "constWood"])
+ride.constWood <- as.data.frame(ride.constWood)
+colnames(ride.constWood) <- c("Wood Preference")
 install.packages("ggplot2")
-install.packages("gridBase")
-install.packages("grid")
-install.packages("lattice")
-install.packages("gridExtra")
-
 library(ggplot2)
-library(lattice)
-library(gridExtra)
+ggplot(data = ride.constWood, aes(ride.constWood$`Wood Preference`), alpha = 0.3) + 
+  geom_histogram(aes(fill = ..count..)) + labs(title = "Preference for Wood vs. Steel", x = "Rating Points", y = "Counts of Respondents") + 
+  scale_fill_gradient("Count", low = "pink", high = "red")
 
-ggplot(data = mtcars, aes(x=wt, y=mpg)) + geom_point() + labs(title = "Automobile Data", x = "Weight", y = "Miles Per Gallon")
-ggplot(data = mtcars, aes(x=wt, y=mpg)) + geom_point(pch = 17, color = "pink", size=2) + 
-  geom_smooth(method = "lm", color = "salmon", linetype = 2) + 
-  labs(title = "Automobile Data", x = "Weight", y = "Miles Per Gallon")
+# Longitudinal Data/Clustered Data Violates the Assumption of Simple Linear Regression
+# 1. Obervations are no longer independent. Errors will be correlated within clusters
+# 2. Between-group homogeneity of variance assumption was violated. The error variance may be different within different clusters
+# 3. Effects of explanatory variables differ in distanct contexts(clusters): different regression lines fitting different clusters
+# Example: Voters nested within countries/Workers nested within firms/Cluster sampling/Time points nested within individuals
 
-# Grouping and Faceting
-mtcars$am <- factor(mtcars$am, levels = c(0,1),
-                    labels = c("Automatic", "Manual"))
-mtcars$vs <- factor(mtcars$vs, levels = c(0,1), 
-                    labels = c("V-Engine", "Straight Engine"))
-mtcars$cyl <- factor(mtcars$cyl)
-
-ggplot(data = mtcars, aes(x = hp, y = mpg,
-                          shape = cyl, color = cyl)) +
-  geom_point(size = 3) + 
-  facet_grid(am~vs) + 
-  labs(title="Automobile Data by Engine Type",
-       x="Horsepower", y="Miles Per Gallon")
-
-data("singer", package = "lattice")
-ggplot(singer, aes(x=height)) + geom_histogram()
-ggplot(singer, aes(x=voice.part, y=height)) + geom_boxplot()
-
-# Specifying the plot type using Geo
-install.packages("car")
-library(car)
-
-ggplot(Salaries, aes(x=rank, y=salary)) + 
-  geom_boxplot(fill = "cornflowerblue",
-               color = "black", notch = TRUE) + 
-  geom_point(position = "jitter", color = "blue", alpha = .5) + 
-  geom_rug(side = 1, color = "grey")
-
-ggplot(singer, aes(x = voice.part, y = height)) + 
-  geom_violin(fill = "lightblue") + 
-  geom_boxplot(fill = "pink", width = .2)
-
-
-# Grouping
-ggplot(data=Salaries, aes(x=salary, fill = rank)) + 
-  geom_density(alpha = .2)
-
-ggplot(Salaries, aes(x=yrs.since.phd, y=salary, color=rank, shape = sex)) + geom_point()
-
-
-ggplot(Salaries, aes(x=rank, fill=sex)) + geom_bar(position = "stack") + labs(title="position = 'stack'")
-ggplot(Salaries, aes(x=rank, fill=sex)) + geom_bar(position = "dodge") + labs(title="position = 'dodge'")
-ggplot(Salaries, aes(x=rank, fill=sex)) + geom_bar(position = "fill") + labs(title="position = 'fill'", y = "Proportion")
-
-
-# Faceting (trellis graph)
-ggplot(data = singer, aes(x = height)) + 
-  geom_histogram() + 
-  facet_wrap(~voice.part, nrow = 4)
-
-ggplot(Salaries, aes(x=yrs.since.phd, y=salary, color = rank, shape = rank)) + geom_point() + facet_grid(.~sex)  
-ggplot(Salaries, aes(x=yrs.since.phd, y=salary, color = rank, shape = rank)) + geom_point() + facet_grid(sex~.)  
-ggplot(data = singer, aes(x=height, fill=voice.part))+geom_density() + facet_grid(voice.part~.)
-
-# Adding smooth lines
-ggplot(Salaries, aes(x=yrs.since.phd, y=salary)) + 
-        geom_smooth() + geom_point()
-
-# geom_smooth() option
-  # method = : lm, glm, smooth(loess)[default], rlm and gam
-  # formula = : y~x[default], y~log(x), y~poly(x,n) for an nth degree polynomial fit, y~ns(x,n) for a spine fit with n degrees of freedom
-  # se : Plots confidence interval, TRUE is default
-  # level: levels of confidence interval to use 95% by default
-  # fullrange: specifies whether the fit should span the full range of the plot or just the data. FALSE is the default.
-
-p4 <-ggplot(Salaries, aes(x = yrs.since.phd, y=salary, linetype = sex, shape=sex, color = sex)) + 
-        geom_smooth(method = lm, formula = y ~ poly(x,2), se = FALSE, size = 1) + 
-        geom_point(size = 2)
-
-
-# Modifying teh appearance of GGplot2 graphs
-## Axes Functions
-  # scale_x_continuous(), scale_y_continuous(): breaks= specifies tick marks, labels= specifies labels for tick marks,and limits= controls the range of the values displayed.
-  # scale_x_discrete(), scale_y_discrete(): breaks= places and orders the levels of a factor, labels= specifies the labels for these levels, and limits= indicates which levels should be displayed.
-  # coord_flip(): Reverses the x and y axes.
-
-ggplot(Salaries, aes(x=rank, y=salary, fill=sex)) + 
-        geom_boxplot() + 
-        scale_x_discrete(breaks = c("AsstProf", "AssocProf", "Prof"), 
-                          labels = c("Assistant\nProfessor",
-                                     "Associate\nProfessor",
-                                     "Full\nProfessor")) +
-        scale_y_continuous(breaks=c(50000, 100000, 150000, 200000),
-                   labels=c("$50K", "$100K", "$150K", "$200K")) +
-        labs(title="Faculty Salary by Rank and Sex", x="", y="")
-
-## Legends Functions
-ggplot(Salaries, aes(x=rank, y=salary, fill = sex)) + 
-        geom_boxplot() + 
-        scale_x_discrete(breaks = c("AsstProf", "AssocProf", "Prof"),
-                         labels = c("Assistant\nProfessor",
-                                    "Associate\nProfessor",
-                                    "Full\nProfessor")) + 
-        scale_y_continuous(breaks=c(50000, 100000, 150000, 200000),
-                     labels=c("$50K", "$100K", "$150K", "$200K")) +
-        labs(title = "Faculty Salary by Rank and Gender", 
-             x = "", y="", fill = "Gender") + 
-        theme(legend.position = c(.1,.8))
-# To omit legend, use legend.position = "none". 
-
-## Scale Functions
-# The ggplot2 package uses scales to map observations from the data space to the visual space.
-
-ggplot(mtcars, aes(x=wt, y=mpg, size=disp, alpha = 0.6)) + 
-        geom_point(shape=21, color = "white", fill = "pink") + 
-        labs(x = "Weight", y="Miles Per Gallon", 
-             title = "Bubble Chart", size = "Engine/nDisplacement")
-# The aes() parameter size=disp generates a scale for the continuous variable disp (engine displacement) and uses it to control the size of the points.
-
-ggplot(Salaries, aes(x=yrs.since.phd, y=salary, color = rank)) + 
-        scale_color_manual(values = c("grey", "pink", "salmon")) + 
-        geom_point(size = 2)
-# For In the discrete case, you can use a scale to associate visual cues (for example, color, shape, line type, size, and transparency) with the levels of a factor.
-# Use the scale_color_manual() function to set the point colors for the three aca- demic ranks
-# Or you can use color presets via the scale_color_brewer() and scale_fill_brewer() functions to specify attractive color sets.
-
-
-ggplot(Salaries, aes(x=yrs.since.phd, y=salary, color=rank)) + 
-        scale_color_brewer(palette = "Accent") + geom_point(size = 2)
-
-# Replacing palette="Set1" with another value (such as "Set2", "Set3", "Pastel1", "Pastel2", "Paired", "Dark2", or "Accent") will result in a different color scheme
-# To see the available color sets, use library(RColorBrewer) display.brewer.all()
-library(RColorBrewer) 
-display.brewer.all()
-
-## Themes Function
-# Themes allow you to control the overall appearance of these graphs. 
-# Options in the theme() function let you change fonts, backgrounds, colors, gridlines, and more.
-
-mytheme <- theme(plot.title = element_text(face = "bold.italic",
-                                           size = 20, color = "Salmon",
-                                           hjust = 0.5),
-                  axis.title = element_text(face = "bold.italic",
-                                            size = 14, colour = "salmon"),
-                 axis.text = element_text(face = "bold", size = 9, colour = "black"),
-                 panel.background = element_rect(fill = "white", colour = "darkblue"),
-                 panel.grid.major.y = element_line(colour = "grey", linetype = 1), 
-                 panel.grid.minor.y = element_line(colour = "grey", linetype = 2),
-                 panel.grid.minor.x = element_blank(),
-                 legend.position = "top")
-
-ggplot(Salaries, aes(x=rank, y=salary, fill=sex)) + 
-         geom_boxplot() + 
-         labs(title = "Salary by Rank and Sex", x="Rank", y="Salary") + 
-         mytheme
-
-## Multiple graphs per page
-p1 <- ggplot(Salaries, aes(x=rank)) + geom_bar()
-p2 <- ggplot(Salaries, aes(x=sex)) + geom_bar()
-p3 <- ggplot(Salaries, aes(x=yrs.since.phd, y=salary)) + geom_point()
-library(gridExtra)
-grid.arrange(p1, p2, p3, ncol=3)
-# Note the difference between faceting and multiple graphs. Faceting creates an array of plots based on one or more categorical variables. 
-# In grid.arrange, you’re arranging completely independent plots into a single graph.
-
-# Saving Graphs
-ggsave(file = "salary.png", plot = p4, width = 5, height = 4)
+# Approaches to cluster/nested data: 
+# 1. Aggregate everything: take means of variable and fit the regression line with means, but this will potentially lead to ecological fallacy, the macro trend(aggregated) might be the opposite of the micro(individual) trends.
+# 2. Treat macro variables as micro variables, but it violates the assumption of independence. 
+# 3. Run the models separately for each group, we are throwing away information and groups with small sample size will be imprecisely estimated. 
+                             
