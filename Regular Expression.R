@@ -53,13 +53,21 @@ grep("^ab", strings, value = TRUE)
 # |: an “or” operator, matches patterns on either side of the |.
 # (...): grouping in regular expressions. This allows you to retrieve the bits that matched various parts of your regular expression so you can alter them or use them for building up a new string. Each group can than be refer using \\N, with N being the No. of (...) used. This is called backreference.
 
-?gsub
-txt <- c("arm","foot","lefroo", "bafoobar")
-gsub("([ab])", "\\1~\\1-", "abc and ab and ABC")
-grep("([ab])", c("abc", "and", "ab", "and", "ABC"), value = TRUE)
-gsub(pattern = "\\|", replacement = " ", movie_metadata$genres[1])
-
-
 # Character classes
-
-
+# [:digit:] or \d: digits, 0 1 2 3 4 5 6 7 8 9, equivalent to [0-9].
+# \D: non-digits, equivalent to [^0-9].
+# [:lower:]: lower-case letters, equivalent to [a-z].
+# [:upper:]: upper-case letters, equivalent to [A-Z].
+# [:alpha:]: alphabetic characters, equivalent to [[:lower:][:upper:]] or [A-z].
+# [:alnum:]: alphanumeric characters, equivalent to [[:alpha:][:digit:]] or [A-z0-9].
+# \w: word characters, equivalent to [[:alnum:]_] or [A-z0-9_].
+# \W: not word, equivalent to [^A-z0-9_].
+# [:xdigit:]: hexadecimal digits (base 16), 0 1 2 3 4 5 6 7 8 9 A B C D E F a b c d e f, equivalent to  [0-9A-Fa-f].
+# [:blank:]: blank characters, i.e. space and tab.
+# [:space:]: space characters: tab, newline, vertical tab, form feed, carriage return, space.
+# \s: space, ` `.
+# \S: not space.
+# [:punct:]: punctuation characters, ! " # $ % & ’ ( ) * + , - . / : ; < = > ? @ [  ] ^ _ ` { | } ~.
+# [:graph:]: graphical (human readable) characters: equivalent to [[:alnum:][:punct:]].
+# [:print:]: printable characters, equivalent to [[:alnum:][:punct:]\\s].
+# [:cntrl:]: control characters, like \n or \r, [\x00-\x1F\x7F].
