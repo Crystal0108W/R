@@ -47,16 +47,16 @@ library(semTools)
 library(semPlot)
 
 piesModel <- " General =~ i1 + i2 + i3
-               Feature =~ i4 + i5 + i6  + i7
-               Image   =~ i8 + i9 + i10 + i11
-               PIES =~ General + Feature + Image "
+Feature =~ i4 + i5 + i6  + i7
+Image   =~ i8 + i9 + i10 + i11
+PIES =~ General + Feature + Image "
 
 #“=∼” symbol as “is manifested by,”
 
 piesDataModel <- " General =~ 0.9*i1 + 0.7*i2 + 0.5*i3
-                   Feature =~ 0.3*i3 + 0.7*i4 + 0.9*i5 + 0.5*i6  + 0.9*i7
-                   Image   =~ 0.2*i3 + 0.8*i8 + 0.9*i9 + 0.8*i10 + 0.7*i11 
-                   PIES =~ 0.7*General + 0.8*Feature + 0.8*Image"
+Feature =~ 0.3*i3 + 0.7*i4 + 0.9*i5 + 0.5*i6  + 0.9*i7
+Image   =~ 0.2*i3 + 0.8*i8 + 0.9*i9 + 0.8*i10 + 0.7*i11 
+PIES =~ 0.7*General + 0.8*Feature + 0.8*Image"
 
 set.seed(12345)
 piessimData.norm <- simulateData(piesDataModel, sample.nobs = 3600)
@@ -72,6 +72,7 @@ summary(pies.fit, fit.measures = TRUE)
 # The lower part of the summary shows that model parameters for the paths of latent variables to items
 # the PIES hierarchical model fits well and—because the factor-item loadings are around 1.0
 
-install.packages("semPlot")
-library(semPlot)
-semPaths(pies.fit, what = "est")
+semPaths(pies.fit, what = "est",fade = FALSE, residuals = FALSE,
+         edge.label.cex = 0.75)
+
+# 2. Establish that 
