@@ -53,9 +53,9 @@ ggplot(data = WaliCust.Freq_type1, aes(x = WaliCust.Freq_type1$Freq)) +
 # Date Bar Chart
 Date_Freq <- as.data.frame(table(WaliCust.df$Date))
 colnames(Date_Freq) <- c("Date", "Freq")
-ggplot(data = WaliCust.df, aes(x = WaliCust.df$Date)) + geom_bar(aes(fill = WaliCust.df$type )) 
+ggplot(data = WaliCust.df, aes(x = WaliCust.df$Date)) + geom_bar(aes(fill = WaliCust.df$type )) + 
+  theme(legend.position = c(0.1,0.9), legend.background = element_rect(fill = NULL)) + guides(fill=guide_legend(title="Type")) 
 
-?geom_bar
 
 # Date Point
 ggplot(data=Date_Freq, aes(x=Date_Freq$Date, y=Date_Freq$Freq, group=Date_Freq$Date)) +
