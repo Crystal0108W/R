@@ -64,3 +64,25 @@ ggplot(data=Date_Freq, aes(x=Date_Freq$Date, y=Date_Freq$Freq, group=Date_Freq$D
 
 # Transaction Time
 WaliCust.df$Time[1] - WaliCust.df$Time[2]
+
+
+
+
+
+############################################################################################################################
+install.packages("ggplot2")
+library(ggplot2)
+summary(WaliCust)
+str(WaliCust)
+
+
+# Transform Data Type
+WaliCust$type <- as.factor(WaliCust$type)
+WaliCust$DOW <- factor(WaliCust$DOW, levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"))
+
+
+# DOW Bar Chart
+ggplot(data = WaliCust, aes(x = WaliCust$DOW, fill = WaliCust$type)) + geom_bar() + 
+  labs(x = "Day of Week") + 
+  scale_fill_discrete(guide = guide_legend(title = "Type"))
+
