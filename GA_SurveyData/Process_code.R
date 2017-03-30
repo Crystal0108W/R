@@ -1,5 +1,5 @@
 SurveyList <- unique(PP$Source)  # Check for unique values for Survey Sources
-SurveyList <- as.list(SurveyList)
+SurveyList <- as.factor(SurveyList)
 
 # extract and arrange survey data for each survey in the survey list
 for (i in 1:6) {
