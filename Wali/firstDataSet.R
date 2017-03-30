@@ -58,12 +58,11 @@ ggplot(data = WaliCust.df, aes(x = WaliCust.df$Date)) + geom_bar(aes(fill = Wali
 
 
 # Date Point
-ggplot(data=Date_Freq, aes(x=Date_Freq$Date, y=Date_Freq$Freq, group=Date_Freq$Date)) +
-  geom_point()
+
 
 
 # Transaction Time
-WaliCust.df$Time[1] - WaliCust.df$Time[2]
+
 
 
 
@@ -71,7 +70,9 @@ WaliCust.df$Time[1] - WaliCust.df$Time[2]
 
 ############################################################################################################################
 install.packages("ggplot2")
+install.packages("plotly")
 library(ggplot2)
+library(plotly)
 summary(WaliCust)
 str(WaliCust)
 
@@ -82,7 +83,75 @@ WaliCust$DOW <- factor(WaliCust$DOW, levels = c("Mon", "Tue", "Wed", "Thu", "Fri
 
 
 # DOW Bar Chart
-ggplot(data = WaliCust, aes(x = WaliCust$DOW, fill = WaliCust$type)) + geom_bar() + 
-  labs(x = "Day of Week") + 
-  scale_fill_discrete(guide = guide_legend(title = "Type"))
+ggplot(data = WaliCust, aes(x = WaliCust$DOW, fill = WaliCust$type)) + geom_bar(width = 0.5) + 
+  labs(x = "Day of Week", title = "Number of Customer in Day of Week\n") + 
+  scale_fill_discrete(guide = guide_legend(title = "Type")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        plot.margin = unit(c(1,1,1,1), "cm"),
+        legend.position = "bottom")
 
+# TOD Bar Chart
+WaliCust$TOD <- substr(WaliCust$Time, 1,2)
+
+ggplot(data = WaliCust, aes(x = WaliCust$TOD, fill = WaliCust$type)) + geom_bar(width = 0.5) + 
+  labs(x = "Time of Day", title = "Number of Customer in Time Period\n") + 
+  scale_fill_discrete(guide = guide_legend(title = "Type")) + 
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        plot.margin = unit(c(1,1,1,1), "cm"),
+        legend.position = "bottom")
+
+# Frequency of Type One
+WaliCust.type1Freq <- subset(WaliCust, WaliCust$type == 1)
+table(droplevels(WaliCust.type1Freq$type), WaliCust.type1Freq$userId) # use droplevels to drop unused level in Table
+table(factor(WaliCust.type1Freq$type), WaliCust.type1Freq$userId) # Or use factor() to drop unused level in Table, none of them will change the levels in the dataframe
+str(WaliCust$type) # none of them will change the levels in the dataframe
+
+WaliCust.type1Freq <- as.data.frame(table(factor(WaliCust.type1Freq$type), WaliCust.type1Freq$userId))
+WaliCust.type1Freq$Var1 <- NULL
+names(WaliCust.type1Freq)[1] <- "userId"
+
+ggplot(data = WaliCust.type1Freq, aes(x = WaliCust.type1Freq$Freq)) + 
+  geom_histogram(aes(fill = ..count..)) + 
+  scale_fill_gradient("count", low = "pink", high = "red") + 
+  labs(title = "Frequency of Using Punch Card for Type1 Customer\n", x ="Frequency") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        plot.margin = unit(c(1,1,1,1), "cm"))
+table(WaliCust.type1Freq$Freq) # Freq Table
+
+
+WaliCust.type1 <- subset(WaliCust, WaliCust$type == 1)
+WaliCust.type2 <- subset(WaliCust, WaliCust$type == 2)
+
+install.packages("reshape")
+library(reshape)
+WaliCust <- WaliCust[, c(1,3,4,5,6,7,8,2)]
+WaliCust.wide <- cast(WaliCust, userId~ type, fill=FALSE)
+colnames(WaliCust.wide) <- c("userId", "Type1", "Type2")
+WaliCust.wide$nine <- (WaliCust.wide$Type1)/9
+WaliCust.wide$ten <- (WaliCust.wide$Type1)/10
+
+WaliCust.wide$Cluster <- 0
+len <- nrow(WaliCust.wide)
+
+i = 1
+for (i in 1:558) {
+if (WaliCust.wide[i,3] >= WaliCust.wide[i,5] & WaliCust.wide[i,2] > 8) {
+  WaliCust.wide[i,6] = 1
+} else if (WaliCust.wide[i,3] >= WaliCust.wide[i,5] & WaliCust.wide[i,2] < 8){
+  WaliCust.wide[i,6] = 2
+} else if (WaliCust.wide[i,3] < WaliCust.wide[i,5] & WaliCust.wide[i,2] > 8){
+  WaliCust.wide[i,6] = 3
+} else WaliCust.wide[i,6] = 4
+}
+WaliCust.wide$Cluster <- as.factor(WaliCust.wide$Cluster)
+str(WaliCust.wide)
+
+install.packages("wesanderson")
+library(wesanderson)
+ggplot(data = WaliCust.wide) + geom_point(aes(x = Type1, y =Type2, color = factor(Cluster))) + 
+    geom_line(aes(x = Type1, y = ten), col = "grey", linetype = 2) + 
+    theme(plot.title = element_text(hjust = 0.5, size = 15), 
+          plot.margin = unit(c(1,1,1,1), "cm")) + 
+  labs(x = "Count of type1 Usage", y = "Count of type2 usage", title = "Count of Type1 and Type2 Customer\n", color = "Cluster") + 
+  scale_color_manual(values=wes_palette(n=3, name="Darjeeling")) + 
+  geom_vline(xintercept = 8.5, col = "grey", linetype = 2)
