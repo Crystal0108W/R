@@ -69,6 +69,7 @@ ggplot(data = WaliCust.df, aes(x = WaliCust.df$Date)) + geom_bar(aes(fill = Wali
 
 
 ############################################################################################################################
+WaliCust <- read.csv("/Users/yw7986/Desktop/firstDataSet.csv")
 install.packages("ggplot2")
 install.packages("plotly")
 library(ggplot2)
@@ -127,31 +128,55 @@ library(reshape)
 WaliCust <- WaliCust[, c(1,3,4,5,6,7,8,2)]
 WaliCust.wide <- cast(WaliCust, userId~ type, fill=FALSE)
 colnames(WaliCust.wide) <- c("userId", "Type1", "Type2")
-WaliCust.wide$nine <- (WaliCust.wide$Type1)/9
-WaliCust.wide$ten <- (WaliCust.wide$Type1)/10
+WaliCust.wide$nine <- floor((WaliCust.wide$Type1)/9)
+WaliCust.wide$ten <- floor((WaliCust.wide$Type1)/10)
+WaliCust.wide$ten1 <- (WaliCust.wide$Type1)/10
+WaliCust.wide$nine1 <- (WaliCust.wide$Type1)/9
 
 WaliCust.wide$Cluster <- 0
 len <- nrow(WaliCust.wide)
 
 i = 1
 for (i in 1:558) {
-if (WaliCust.wide[i,3] >= WaliCust.wide[i,5] & WaliCust.wide[i,2] > 8) {
-  WaliCust.wide[i,6] = 1
-} else if (WaliCust.wide[i,3] >= WaliCust.wide[i,5] & WaliCust.wide[i,2] < 8){
-  WaliCust.wide[i,6] = 2
-} else if (WaliCust.wide[i,3] < WaliCust.wide[i,5] & WaliCust.wide[i,2] > 8){
-  WaliCust.wide[i,6] = 3
-} else WaliCust.wide[i,6] = 4
+  if (WaliCust.wide[i,3] > WaliCust.wide[i,4]) {
+    WaliCust.wide[i,6] = 1
+  } else if (WaliCust.wide[i,3] == WaliCust.wide[i,4] & WaliCust.wide[i,2] >= 9){
+    WaliCust.wide[i,6] = 2
+  } else if (WaliCust.wide[i,3] < WaliCust.wide[i,4] & WaliCust.wide[i,2] >= 9){
+    WaliCust.wide[i,6] = 3
+  } else WaliCust.wide[i,6] = 4
 }
+
+i = 1
+for (i in 1:558) {
+  if (WaliCust.wide[i,3] > WaliCust.wide[i,5]) {
+    WaliCust.wide[i,6] = 1
+  } else if (WaliCust.wide[i,3] == WaliCust.wide[i,5] & WaliCust.wide[i,2] > 8) {
+    WaliCust.wide[i,6] = 2
+  } else if (WaliCust.wide[i,3] < WaliCust.wide[i,5] & WaliCust.wide[i,2] > 8) {
+    WaliCust.wide[i,6] = 3
+  } else WaliCust.wide[i,6] = 4
+}
+
+
 WaliCust.wide$Cluster <- as.factor(WaliCust.wide$Cluster)
 str(WaliCust.wide)
 
 install.packages("wesanderson")
 library(wesanderson)
-ggplot(data = WaliCust.wide) + geom_point(aes(x = Type1, y =Type2, color = factor(Cluster))) + 
-    geom_line(aes(x = Type1, y = ten), col = "grey", linetype = 2) + 
-    theme(plot.title = element_text(hjust = 0.5, size = 15), 
-          plot.margin = unit(c(1,1,1,1), "cm")) + 
+p<-ggplot(data = WaliCust.wide) + geom_point(aes(x = Type1, y =Type2, color = factor(Cluster))) + 
+  geom_line(aes(x = Type1, y = nine1), col = "grey", linetype = 2) + 
+  theme(plot.title = element_text(hjust = 0.5, size = 15), 
+        plot.margin = unit(c(1,1,1,1), "cm")) + 
   labs(x = "Count of type1 Usage", y = "Count of type2 usage", title = "Count of Type1 and Type2 Customer\n", color = "Cluster") + 
-  scale_color_manual(values=wes_palette(n=3, name="Darjeeling")) + 
+  scale_color_manual(values=wes_palette(n=4, name="Darjeeling")) + 
+  geom_vline(xintercept = 8.5, col = "grey", linetype = 2)
+
+ggplotly(p)
+
+ggplot(data = WaliCust.wide) + geom_point(aes(x = Type1, y =Type2, color = factor(Cluster))) + 
+  theme(plot.title = element_text(hjust = 0.5, size = 15), 
+        plot.margin = unit(c(1,1,1,1), "cm")) + 
+  labs(x = "Count of type1 Usage", y = "Count of type2 usage", title = "Count of Type1 and Type2 Customer\n", color = "Cluster") + 
+  scale_color_manual(values=wes_palette(n=4, name="Darjeeling")) + 
   geom_vline(xintercept = 8.5, col = "grey", linetype = 2)
