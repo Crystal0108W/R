@@ -1,13 +1,15 @@
 # Sentimen Analysis with "Sentiment" package
 library(twitteR)
+library(ROAuth)
 library(plyr)
 library(ggplot2)
 library(wordcloud2)
 library(RColorBrewer)
-install.packages("devtools")
 library(devtools)
+library(tm)
+install_github("sentiment", "andrie")
+library(sentiment)
 install.packages("Rstem", repos = "http://www.omegahat.net/R")
-install.packages("sentiment_0.2.tar.gz", repos = NULL, type = "source")
 
 download.file(url = "http://curl.haxx.se/ca/cacert.pem",
               destfile = "cacert.pem")
@@ -27,6 +29,13 @@ UA_tweets_txt <- gsub("http\\w+", "", UA_tweets_txt) # remove html links
 UA_tweets_txt <- gsub("[ \t]{2,}", "", UA_tweets_txt)
 UA_tweets_txt <- gsub("^\\s+|\\s+$", "", UA_tweets_txt) # remove spaces where there are more than 2
 UA_tweets_txt <- UA_tweets_txt[!is.na(UA_tweets_txt)] 
+UA_tweets_txt <- as.list(UA_tweets_txt)
 
 # Classify Emotion
+install.packages("sentiment_0.2.tar.gz", repos = NULL, type="source")
+library(sentiment)
 class_emo <- classify_emotion(UA_tweets_txt, algorithm = "bayes", prior=1.0)
+emotion <- class_emo[,7]
+emotion[is.na(emotion)] = "unknown"
+
+class_pol <- classify_polarity(UA_tweets_txt, algorithm = "bayes")
