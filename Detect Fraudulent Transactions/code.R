@@ -4,6 +4,7 @@
 # (2) clustering, and also 
 # (3) semi-supervised prediction models.
 
+install.packages("ggplot2")
 library(ggplot2)
 
 load("/Users/yw7986/Desktop/sales.Rdata")
@@ -121,6 +122,7 @@ sales$Price <- sales$Val/sales$Quant # Now the dataset is free of unknown values
 sales <- as.data.frame(sales)
 save(sales, file = "/Users/yw7986/Desktop/salesClean.Rdata")
 
+
 # Detect Products with very few transactions
 attach(sales)
 notF <- which(Insp != "Fraud")
@@ -138,3 +140,95 @@ plot(ms[, 1], ms[, 2], xlab = "Median", ylab = "IQR", main = "with Linear Scale"
 plot(ms[, 1], ms[, 2], xlab = "Median", ylab = "IQR", main = "with Log Scale", col = "grey", log = "xy")
 smalls <- which(table(Prod) < 20)
 points(log(ms[smalls, 1]), log(ms[smalls, 2]), pch = "+")
+# This provides good indications of the similarity of their distributions of unit price.
+dms <- scale(ms)
+smalls <- which(table(Prod) < 20)
+prods <- tapply(sales$Price, sales$Prod, list)
+similar <- matrix(NA, length(smalls), 7, dimnames = list(names(smalls), c("Simil", "ks.stat", "ks.p", "medP", "iqrP", "medS", "iqrS")))
+for (i in seq(along = smalls)) {
+  d <- scale(dms, dms[smalls[i], ], FALSE)
+  d <- sqrt(drop(d^2 %*% rep(1, ncol(d))))
+  stat <- ks.test(prods[[smalls[i]]], prods[[order(d)[2]]])
+  similar[i, ] <- c(order(d)[2], stat$statistic, stat$p.value, ms[smalls[i], ], ms[order(d)[2], ])
+}
+
+
+
+
+#################################################################################################################################################################
+avgNDTP <- function(toInsp,train,stats) {
+  if (missing(train) && missing(stats))
+    stop("Provide either the training data or the product stats")
+  if (missing(stats)) {
+    notF <- which(train$Insp != "fraud")
+    stats <- tapply(train$Price[notF],
+                    list(Prod = train$Prod[notF]),
+                    function(x) {
+                      bp <- boxplot.stats(x)$stats
+                      c(median=bp[3], iqr = bp[4]-bp[2])
+                    })
+    stats <- matrix(unlist(stats),
+                    length(stats), 2, byrow = T, 
+                    dimnames = list(names(stats), c('median', 'iqr')))
+    stats[which(stats[, 'iqr'] == 0), 'iqr'] <- stats[which(stats[, 'iqr'] == 0), 'median']
+  }
+  
+  mdtp <- mean(abs(toInsp$Price - stats[toInsp$Prod, 'median']) / stats[toInsp$Prod, 'iqr'])
+  return(mdtp)
+}
+
+evalOutlierRanking <- function(testSet,rankOrder,Threshold,statsProds) {
+  ordTS <- testSet[rankOrder,]
+  N <- nrow(testSet)
+  nF <- if (Threshold < 1) as.integer(Threshold*N) else Threshold
+  cm <- table(c(rep('fraud',nF),rep('ok',N-nF)),ordTS$Insp)
+  prec <- cm['fraud','fraud']/sum(cm['fraud',])
+  rec <- cm['fraud','fraud']/sum(cm[,'fraud'])
+  AVGndtp <- avgNDTP(ordTS[nF,],stats=statsProds)
+  return(c(Precision=prec,Recall=rec,avgNDTP=AVGndtp))
+}
+
+#################################################################################################################################################################
+# Unsupervised Approaches
+BPrule <- function(train,test) {
+  notF <- which(train$Insp != 'Fraud')
+  ms <- tapply(train$Price[notF], list(Prod = train$Prod[notF]),
+               function(x) {
+                 bp <- boxplot.stats(x)$stats
+                 c(median = bp[3], iqr = bp[4]-bp[2])
+               })
+  ms <- matrix(unlist(ms),length(ms),2,byrow=T, dimnames=list(names(ms),c('median','iqr')))
+  ms[which(ms[,'iqr']==0),'iqr'] <- ms[which(ms[,'iqr']==0),'median']
+  ORscore <- abs(test$Price-ms[test$Prod,'median']) /ms[test$Prod,'iqr']
+  return(list(rankOrder=order(ORscore,decreasing=T),rankScore=ORscore))
+}
+
+notF <- which(sales$Insp != 'fraud')
+globalStats <- tapply(sales$Price[notF], list(Prod = sales$Prod[notF]),
+                      function(x) {
+                        bp <- boxplot.stats(x)$stats
+                        c(median = bp[3], iqr = bp[4]-bp[2])
+                      })
+globalStats <- matrix(unlist(globalStats),length(globalStats),2,byrow=T,dimnames=list(names(globalStats),c('median','iqr')))
+globalStats[which(globalStats[,'iqr']==0),'iqr'] <- globalStats[which(globalStats[,'iqr']==0),'median']
+ho.BPrule <- function(form, train, test, ...) {
+  res <- BPrule(train, test)
+  structure(evalOutlierRanking(test, res$rankOrder, ...),
+            itInfo = list(preds = res$rankScore,
+                          trues = ifelse(test$Insp == 'fraud', 1, 0)))
+}
+
+
+bp.res <- holdOut(learner('ho.BPrule',
+                          pars = list(Threshold = 0.1, statsProds = globalStats)),
+                  dataset(Insp~., sales),
+                  hldSettings(3, 0.3, 1234, T),
+                  itsInfo = TRUE)
+
+summary(bp.res)
+
+par(mfrow=c(1,2))
+info <- attr(bp.res,'itsInfo')
+PTs.bp <- aperm(array(unlist(info),dim=c(length(info[[1]]),2,3)), c(1, 3, 2))
+PRcurve(PTs.bp[,,1],PTs.bp[,,2],main='PR curve',avg='vertical')
+CRchart(PTs.bp[,,1],PTs.bp[,,2],main='Cumulative Recall curve',avg='vertical')
