@@ -75,3 +75,66 @@ nas <- sales[which(is.na(Quant) & is.na(Val)), c("ID","Prod")]
 # Removing all 888 cases may be problematic if this leads to removing most transactions of some product or salesperson.
 propS <- 100 * table(nas$ID)/totS
 propS[order(propS, decreasing = T)[1:10]]
+
+propP <- 100 * table(nas$Prod) / totP # There are several products that would have more than 20% of their transactions removed
+propP[order(propP, decreasing = T)[1:10]]
+# if we look at the similarity between the unit price distribution of the products, we will observe that these products are, in effect, rather similar to other products.
+# In summary, the option of removing all transactions with unknown values on both the quantity and the value is the best option we have
+sales <- sales[-which(is.na(sales$Quant) & is.na(sales$Val)),]
+
+# analyze the remaining reports with unknown values in either the quantity or the value of the transaction
+nnasQp <- tapply(sales$Quant,list(sales$Prod),function(x) sum(is.na(x)))
+propNAsQp <- nnasQp/table(sales$Prod)
+propNAsQp[order(propNAsQp,decreasing=T)[1:10]]
+
+# "p2442", "p2443" have all transaction missing, so remove them
+sales <- sales[!sales$Prod %in% c("p2442", "p2443"), ]
+
+# Are there salespeople with all transactions with unknown quantity?
+nnasQs <- tapply(sales$Quant, list(sales$ID), function(x) sum(is.na(x)))
+propNAsQs <- nnasQs/table(sales$ID)
+propNAsQs[order(propNAsQs, decreasing = T)[1:10]]
+# In effect, as long as we have other transactions of the same products reported by other salespeople, we can try to use this information to fill in these unknowns using the assumption that the unit price should be similar.
+
+
+# Carry out the same analysis for transactions with unknown value
+nnasVp <- tapply(sales$Val,list(sales$Prod),function(x) sum(is.na(x)))
+propNAsVp <- nnasVp/table(sales$Prod)
+propNAsVp[order(propNAsVp,decreasing=T)[1:10]] # numbers are reasonable
+
+# With respect to salespeople
+nnasVs <- tapply(sales$Val, list(sales$ID), function(x) sum(is.na(x)))
+propNAsVs <- nnasVs/table(sales$ID)
+propNAsVs[order(propNAsVs, decreasing = T)[1:10]]
+
+# Fill-in the unknown values for the remaining dataset since they are reasonable
+
+tPrice <- tapply(sales[sales$Insp != "fraud", "Price"],list(sales[sales$Insp != "fraud", "Prod"]), median, na.rm = T) # typical price of transactions that are not fraud
+
+noQuant <- which(is.na(sales$Quant))
+sales[noQuant,'Quant'] <- ceiling(sales[noQuant,'Val'] / tPrice[sales[noQuant, "Prod"]]) # use the typical price as the price for that product and calculate the quantity
+
+noVal <- which(is.na(sales$Val))
+sales[noVal,'Val'] <- sales[noVal,'Quant'] * tPrice[sales[noVal,'Prod']]# use the typical price as the price for that product and calculate the quantity
+
+sales$Price <- sales$Val/sales$Quant # Now the dataset is free of unknown values
+sales <- as.data.frame(sales)
+save(sales, file = "/Users/yw7986/Desktop/salesClean.Rdata")
+
+# Detect Products with very few transactions
+attach(sales)
+notF <- which(Insp != "Fraud")
+
+# Check for central tendency and spread; use the median as the statistics of centrality and the inter-quartile range(IQR) as the statistics of spread
+ms <- tapply(Price[notF], list(Prod = Prod[notF]), function(x) {
+  bp <- boxplot.stats(x)$stats
+  c(median = bp[3], ipr = bp[4]-bp[2])
+})
+ms <- matrix(unlist(ms), length(ms), 2,
+             byrow = T, dimnames = list(names(ms), c("median", "iqr")))
+
+par(mfrow = c(1,2))
+plot(ms[, 1], ms[, 2], xlab = "Median", ylab = "IQR", main = "with Linear Scale")
+plot(ms[, 1], ms[, 2], xlab = "Median", ylab = "IQR", main = "with Log Scale", col = "grey", log = "xy")
+smalls <- which(table(Prod) < 20)
+points(log(ms[smalls, 1]), log(ms[smalls, 2]), pch = "+")
