@@ -1,5 +1,4 @@
 # Market Research: Compare the groups: Tables and Visualizations
-
 # Step 1: simulating consumer segement data
 
 # Define the structure of the data sets
